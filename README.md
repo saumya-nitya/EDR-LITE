@@ -114,3 +114,5 @@ EDR-Lite logs the failure and keeps running instead of crashing - which matters,
 - ETW is genuinely powerful but the documentation is sparse - a lot of this came down to reading compiler errors carefully and matching them against the actual `TraceEvent` type names (turns out `FileIoCreate` isn't a thing, `FileIOCreate` is - that casing mismatch alone cost me a build).
 - Getting something to compile and getting it to actually *run* on a real Windows machine are two different problems. Smart App Control blocking the binary outright was a new category of obstacle, and chasing it down was its own lesson in knowing when to step back and try a more direct fix.
 - Sliding-window rate limiting is a recurring pattern in security tooling once you start recognizing it - the same concept applies to brute force detection, DDoS mitigation, and file-based anomaly detection. The implementation details differ but the core idea doesn't.
+
+Intern ID: CITS2843
