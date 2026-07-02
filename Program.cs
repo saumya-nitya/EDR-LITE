@@ -1,4 +1,5 @@
 ﻿using EdrLite.Etw;
 
-var etwMonitor = new EtwFileMonitor(@"E:\VS CODE projects\edr-lite\test-folder");
+string watchPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "test-folder");
+var etwMonitor = new EtwFileMonitor(watchPath);
 etwMonitor.Start();

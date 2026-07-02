@@ -49,35 +49,28 @@ WMI queries look like SQL against the OS:
 ```csharp
 new ManagementObjectSearcher("SELECT ProcessId, ParentProcessId, Name, ExecutablePath FROM Win32_Process")
 ```
-
 This returns a flat list of every running process with its parent PID. To make the parent-child relationships queryable, the flat list gets restructured into a `Dictionary<int, List<ProcessInfo>>` mapping each parent PID to its children - then a recursive `PrintNode` method walks the tree and prints it indented.
 
 Running this on a live machine produced something like:
-System (PID: 4) 
--smss.exe (PID: 944)
--services.exe (PID: 1472)
--svchost.exe (PID: 1656)
--RuntimeBroker.exe (PID: 16480)
--SearchHost.exe (PID: 4488)
 
-
-MsMpEng.exe (PID: 5124)
-...
-
-
-explorer.exe (PID: 20920)
-
-Code.exe (PID: 2316)
-
-powershell.exe (PID: 26644)
-
-dotnet.exe (PID: 16116)
-
-EdrLite.exe (PID: 27344)
+    - System (PID: 4)
+      - smss.exe (PID: 944)
+      - services.exe (PID: 1472)
+        - svchost.exe (PID: 1656)
+          - RuntimeBroker.exe (PID: 16480)
+          - SearchHost.exe (PID: 4488)
+        - MsMpEng.exe (PID: 5124)
+        ...
+    - explorer.exe (PID: 20920)
+      - Code.exe (PID: 2316)
+        - powershell.exe (PID: 26644)
+          - dotnet.exe (PID: 16116)
+            - EdrLite.exe (PID: 27344)
 
 EDR-Lite showing up at the bottom of its own process tree was a good sanity check that the parent-child logic was correct.
 
 One real-world quirk: some processes show up as roots even when they're not actually top-level - their parent process already exited, so the PPID points to a PID that no longer exists in the running process list. The root-detection logic handles this correctly: "if your parent PID isn't in our list, you're a root," which covers both genuinely top-level processes and orphaned ones.
+
 
 One CA1416 warning showed up from the compiler here and repeats throughout the project:
 warning CA1416: 'ManagementObjectSearcher' is only supported on: 'windows'
@@ -166,10 +159,11 @@ That's what ended up working. One toggle, one `dotnet run`, and the ETW session 
 ### Verified output after filtering
 
 Once SAC was off and the path filter in place, the output was clean:
-ETW session started. Watching: e:\vs code projects\edr-lite\test-folder
-[CREATE] PID=2316 File=E:\VS CODE projects\edr-lite\test-folder\test2.txt
-[WRITE]  PID=2316 File=E:\VS CODE projects\edr-lite\test-folder\test2.txt
-[RENAME] PID=2316 File=E:\VS CODE projects\edr-lite\test-folder\test2.txt
+
+    ETW session started. Watching: e:\vs code projects\edr-lite\test-folder
+    [CREATE] PID=2316 File=E:\VS CODE projects\edr-lite\test-folder\test2.txt
+    [WRITE]  PID=2316 File=E:\VS CODE projects\edr-lite\test-folder\test2.txt
+    [RENAME] PID=2316 File=E:\VS CODE projects\edr-lite\test-folder\test2.txt
 
 PID 2316 is VS Code - it was touching the test file while it was open in the editor. This is exactly the kind of legitimate but noteworthy attribution that `FileSystemWatcher` alone could never provide.
 
@@ -316,14 +310,15 @@ public void Log(string message)
 ### What the log looks like
 
 From an actual session:
-[2026-06-30 20:37:22] ETW session started. Watching: e:\vs code projects\edr-lite\test-folder
-[2026-06-30 20:37:36] [CREATE] PID=15944 File=E:\VS CODE projects\edr-lite\test-folder\sim_file_1.txt
-[2026-06-30 20:37:36] [WRITE]  PID=15944 File=E:\VS CODE projects\edr-lite\test-folder\sim_file_1.txt
-[2026-06-30 20:37:36] [RENAME] PID=15944 File=E:\VS CODE projects\edr-lite\test-folder\sim_file_1.txt
-[2026-06-30 20:37:36] ALERT: PID=15944 crossed suspicious threshold (triggered by ...sim_file_4.txt)
-[2026-06-30 20:37:36] RESPONSE: Killed PID=15944 (powershell)
-[2026-06-30 20:37:39] ALERT: PID=4 crossed suspicious threshold (triggered by ...sim_file_20.txt)
-[2026-06-30 20:37:39] RESPONSE FAILED: Could not kill PID=4. Reason: Access is denied.
+
+    [2026-06-30 20:37:22] ETW session started. Watching: e:\vs code projects\edr-lite\test-folder
+    [2026-06-30 20:37:36] [CREATE] PID=15944 File=E:\VS CODE projects\edr-lite\test-folder\sim_file_1.txt
+    [2026-06-30 20:37:36] [WRITE]  PID=15944 File=E:\VS CODE projects\edr-lite\test-folder\sim_file_1.txt
+    [2026-06-30 20:37:36] [RENAME] PID=15944 File=E:\VS CODE projects\edr-lite\test-folder\sim_file_1.txt
+    [2026-06-30 20:37:36] ALERT: PID=15944 crossed suspicious threshold (triggered by ...sim_file_4.txt)
+    [2026-06-30 20:37:36] RESPONSE: Killed PID=15944 (powershell)
+    [2026-06-30 20:37:39] ALERT: PID=4 crossed suspicious threshold (triggered by ...sim_file_20.txt)
+    [2026-06-30 20:37:39] RESPONSE FAILED: Could not kill PID=4. Reason: Access is denied.
 
 The timestamp format (`yyyy-MM-dd HH:mm:ss`) is sortable lexicographically - useful if logs from multiple sessions ever get merged or parsed programmatically.
 

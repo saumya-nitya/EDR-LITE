@@ -37,18 +37,19 @@ ETW (Event Tracing for Windows) is the same kernel-level mechanism real tools li
 - PowerShell - demo/simulation script
 
 ## Project structure
-edr-lite/
-├── Program.cs
-├── Monitoring/
-│   └── ProcessMonitor.cs      # process listing + parent-child tree
-├── Etw/
-│   └── EtwFileMonitor.cs      # kernel-level file/process correlation
-├── Detection/
-│   ├── ActivityTracker.cs     # sliding-window threshold logic
-│   ├── ResponseHandler.cs     # kill + alert-once-per-PID logic
-│   └── Logger.cs              # timestamped file logging
-├── demo-ransomware-sim.ps1    # safe simulation script
-└── edr-lite.log               # generated at runtime
+
+    edr-lite/
+    ├── Program.cs
+    ├── Monitoring/
+    │   └── ProcessMonitor.cs      # process listing + parent-child tree
+    ├── Etw/
+    │   └── EtwFileMonitor.cs      # kernel-level file/process correlation
+    ├── Detection/
+    │   ├── ActivityTracker.cs     # sliding-window threshold logic
+    │   ├── ResponseHandler.cs     # kill + alert-once-per-PID logic
+    │   └── Logger.cs              # timestamped file logging
+    ├── demo-ransomware-sim.ps1    # safe simulation script
+    └── edr-lite.log               # generated at runtime
 ## How to run it
 
 **Requirements:** Windows 10/11, .NET 10 SDK, Administrator privileges (ETW kernel tracing requires elevation).
@@ -85,13 +86,17 @@ Worth noting: if you run the demo script from VS Code's integrated terminal, and
 ## Sample output
 
 Trimmed from an actual run:
-[2026-06-30 20:37:36] [CREATE] PID=15944 File=...test-folder\sim_file_4.txt
-[2026-06-30 20:37:36] [RENAME] PID=15944 File=...test-folder\sim_file_4.txt
-[2026-06-30 20:37:36] ALERT: PID=15944 crossed suspicious threshold (triggered by ...sim_file_4.txt)
-[2026-06-30 20:37:36] RESPONSE: Killed PID=15944 (powershell)
+
+    [2026-06-30 20:37:36] [CREATE] PID=15944 File=...test-folder\sim_file_4.txt
+    [2026-06-30 20:37:36] [RENAME] PID=15944 File=...test-folder\sim_file_4.txt
+    [2026-06-30 20:37:36] ALERT: PID=15944 crossed suspicious threshold (triggered by ...sim_file_4.txt)
+    [2026-06-30 20:37:36] RESPONSE: Killed PID=15944 (powershell)
+
 And a case where the kill correctly failed - PID 4 is `System`, a protected Windows process that nothing should be able to kill, including this tool:
-[2026-06-30 20:37:39] ALERT: PID=4 crossed suspicious threshold (triggered by ...sim_file_20.txt)
-[2026-06-30 20:37:39] RESPONSE FAILED: Could not kill PID=4. Reason: Access is denied.
+
+    [2026-06-30 20:37:39] ALERT: PID=4 crossed suspicious threshold (triggered by ...sim_file_20.txt)
+    [2026-06-30 20:37:39] RESPONSE FAILED: Could not kill PID=4. Reason: Access is denied.
+
 EDR-Lite logs the failure and keeps running instead of crashing - which matters, since a monitoring tool that dies on its first edge case isn't much of a monitoring tool.
 
 ## Known limitations / what I'd improve next
